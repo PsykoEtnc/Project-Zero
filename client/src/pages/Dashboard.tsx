@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { AlertType, Mission, Waypoint } from "@shared/schema";
+import type { AlertType, Mission, Waypoint, RouteChange, ConnectionLog } from "@shared/schema";
 import { Map, AlertTriangle, FileText, Radio, Users, Navigation } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -89,6 +89,18 @@ export function Dashboard() {
   // Fetch waypoints
   const { data: waypoints = [] } = useQuery<Waypoint[]>({
     queryKey: ["/api/waypoints"],
+  });
+
+  // Fetch route changes (for debriefing)
+  const { data: routeChanges = [] } = useQuery<RouteChange[]>({
+    queryKey: ["/api/route-changes"],
+    enabled: isPC,
+  });
+
+  // Fetch connection logs (for debriefing)
+  const { data: connectionLogs = [] } = useQuery<ConnectionLog[]>({
+    queryKey: ["/api/connection-logs"],
+    enabled: isPC,
   });
 
   // Handle stealth mode toggle
@@ -205,29 +217,50 @@ export function Dashboard() {
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar - PC view only */}
         {isPC && (
-          <aside className="hidden lg:flex flex-col w-72 border-r border-border bg-sidebar overflow-hidden">
-            <div className="p-4 border-b border-sidebar-border">
-              <h2 className="font-semibold text-sm uppercase tracking-wide text-sidebar-foreground">
-                Poste de Commandement
-              </h2>
-            </div>
-            
-            <div className="flex-1 overflow-auto p-4 space-y-4">
-              <VehicleStatus
-                vehicles={vehicles}
-                selectedVehicleId={selectedVehicleId}
-                onSelectVehicle={setSelectedVehicleId}
-              />
+          <aside className="hidden lg:flex flex-col w-80 border-r border-border bg-sidebar overflow-hidden">
+            <Tabs defaultValue="ops" className="flex-1 flex flex-col">
+              <div className="p-3 border-b border-sidebar-border">
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="ops" data-testid="tab-desktop-ops">
+                    <Navigation className="w-4 h-4 mr-1" />
+                    Ops
+                  </TabsTrigger>
+                  <TabsTrigger value="debrief" data-testid="tab-desktop-debrief">
+                    <Radio className="w-4 h-4 mr-1" />
+                    Débrief
+                  </TabsTrigger>
+                </TabsList>
+              </div>
               
-              <RouteInfo
-                distanceKm={routeDistanceKm}
-                etaMinutes={routeEtaMinutes}
-                isOffRoute={false}
-                onRecalculate={recalculateRoute}
-              />
+              <TabsContent value="ops" className="flex-1 overflow-auto p-4 space-y-4 m-0">
+                <VehicleStatus
+                  vehicles={vehicles}
+                  selectedVehicleId={selectedVehicleId}
+                  onSelectVehicle={setSelectedVehicleId}
+                />
+                
+                <RouteInfo
+                  distanceKm={routeDistanceKm}
+                  etaMinutes={routeEtaMinutes}
+                  isOffRoute={false}
+                  onRecalculate={recalculateRoute}
+                />
 
-              <PCMessageSender onSendMessage={handleSendMessage} />
-            </div>
+                <PCMessageSender onSendMessage={handleSendMessage} />
+                
+                <BriefingView mission={mission ?? null} isLoading={missionLoading} />
+              </TabsContent>
+              
+              <TabsContent value="debrief" className="flex-1 overflow-auto p-4 m-0">
+                <DebriefingView
+                  mission={mission ?? null}
+                  alerts={alerts}
+                  connectionLogs={connectionLogs}
+                  routeChanges={routeChanges}
+                  isLoading={missionLoading}
+                />
+              </TabsContent>
+            </Tabs>
           </aside>
         )}
 
@@ -236,7 +269,7 @@ export function Dashboard() {
           {/* Map and tabs for mobile */}
           <div className="flex-1 flex flex-col overflow-hidden lg:hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="mx-4 mt-2 grid grid-cols-4">
+              <TabsList className="mx-4 mt-2 grid" style={{ gridTemplateColumns: isPC ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
                 <TabsTrigger value="map" data-testid="tab-map">
                   <Map className="w-4 h-4" />
                 </TabsTrigger>
@@ -253,6 +286,9 @@ export function Dashboard() {
                     </TabsTrigger>
                     <TabsTrigger value="mission" data-testid="tab-mission">
                       <FileText className="w-4 h-4" />
+                    </TabsTrigger>
+                    <TabsTrigger value="debrief" data-testid="tab-debrief">
+                      <Radio className="w-4 h-4" />
                     </TabsTrigger>
                   </>
                 )}
@@ -296,6 +332,16 @@ export function Dashboard() {
 
                   <TabsContent value="mission" className="flex-1 m-0 p-4 overflow-auto">
                     <BriefingView mission={mission ?? null} isLoading={missionLoading} />
+                  </TabsContent>
+                  
+                  <TabsContent value="debrief" className="flex-1 m-0 p-4 overflow-auto">
+                    <DebriefingView
+                      mission={mission ?? null}
+                      alerts={alerts}
+                      connectionLogs={connectionLogs}
+                      routeChanges={routeChanges}
+                      isLoading={missionLoading}
+                    />
                   </TabsContent>
                 </>
               )}

@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Mission, Alert, ConnectionLog } from "@shared/schema";
-import { FileText, MapPin, AlertTriangle, WifiOff, Clock, Route, Download, RefreshCw } from "lucide-react";
+import type { Mission, Alert, ConnectionLog, RouteChange } from "@shared/schema";
+import { FileText, MapPin, AlertTriangle, WifiOff, Clock, Route, Download, RefreshCw, GitBranch } from "lucide-react";
 import { format, formatDuration, intervalToDuration } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -12,6 +12,7 @@ interface DebriefingViewProps {
   mission: Mission | null;
   alerts: Alert[];
   connectionLogs: ConnectionLog[];
+  routeChanges?: RouteChange[];
   totalDistanceKm?: number;
   isLoading?: boolean;
   onGenerateDebrief?: () => void;
@@ -23,6 +24,7 @@ export function DebriefingView({
   mission,
   alerts,
   connectionLogs,
+  routeChanges = [],
   totalDistanceKm = 0,
   isLoading,
   onGenerateDebrief,
@@ -118,6 +120,12 @@ export function DebriefingView({
                   value={disconnectionEvents.length.toString()}
                   color="yellow"
                 />
+                <StatCard
+                  icon={<GitBranch className="w-5 h-5" />}
+                  label="Changements itin."
+                  value={routeChanges.length.toString()}
+                  color="blue"
+                />
               </div>
             </div>
 
@@ -149,6 +157,15 @@ export function DebriefingView({
                     time={log.timestamp ? format(new Date(log.timestamp), "HH:mm", { locale: fr }) : ""}
                     title={`Perte connexion: ${log.vehicleId}`}
                     type="disconnect"
+                  />
+                ))}
+                {routeChanges.map((change) => (
+                  <TimelineEvent
+                    key={change.id}
+                    time={change.createdAt ? format(new Date(change.createdAt), "HH:mm", { locale: fr }) : ""}
+                    title={`Changement itinéraire`}
+                    description={`${change.triggeredByVehicleId ?? "PC"}: ${change.reason}`}
+                    type="route"
                   />
                 ))}
                 {mission.completedAt && (
@@ -195,6 +212,36 @@ export function DebriefingView({
                       {log.latitude && log.longitude && (
                         <p className="text-xs text-muted-foreground font-mono mt-1">
                           Position: {log.latitude.toFixed(6)}, {log.longitude.toFixed(6)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Route change history */}
+            {routeChanges.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-3">
+                  Historique des changements d'itinéraire
+                </h3>
+                <div className="space-y-2">
+                  {routeChanges.map((change) => (
+                    <div key={change.id} className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <GitBranch className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium">{change.triggeredByVehicleId ?? "PC"}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {change.createdAt ? format(new Date(change.createdAt), "HH:mm", { locale: fr }) : ""}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-1">{change.reason}</p>
+                      {change.justification && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {change.justification}
                         </p>
                       )}
                     </div>
@@ -264,7 +311,7 @@ interface TimelineEventProps {
   time: string;
   title: string;
   description?: string;
-  type: "start" | "end" | "alert" | "disconnect";
+  type: "start" | "end" | "alert" | "disconnect" | "route";
 }
 
 function TimelineEvent({ time, title, description, type }: TimelineEventProps) {
@@ -273,6 +320,7 @@ function TimelineEvent({ time, title, description, type }: TimelineEventProps) {
     end: "bg-green-500",
     alert: "bg-red-500",
     disconnect: "bg-yellow-500",
+    route: "bg-blue-500",
   };
 
   return (

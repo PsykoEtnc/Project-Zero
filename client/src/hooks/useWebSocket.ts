@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { socket } from "@/lib/socket";
+import { queryClient } from "@/lib/queryClient";
 import type { Vehicle, Alert, PcMessage } from "@shared/schema";
 
 interface WebSocketState {
@@ -75,9 +76,12 @@ export function useWebSocket(currentRole: string | null) {
   }, []);
 
   // Request route recalculation
-  const recalculateRoute = useCallback(() => {
-    socket.emit("route:recalculate");
-  }, []);
+  const recalculateRoute = useCallback((reason?: string) => {
+    socket.emit("route:recalculate", { 
+      reason: reason ?? "Recalcul manuel",
+      vehicleId: currentRole 
+    });
+  }, [currentRole]);
 
   useEffect(() => {
     // Connection events
@@ -137,6 +141,11 @@ export function useWebSocket(currentRole: string | null) {
       setState(prev => ({ ...prev, route }));
     });
 
+    // Invalidate route-changes cache when new changes are created
+    socket.on("route-change:created", () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/route-changes"] });
+    });
+
     // Connect if not already connected
     if (!socket.connected) {
       socket.connect();
@@ -155,6 +164,7 @@ export function useWebSocket(currentRole: string | null) {
       socket.off("messages:sync");
       socket.off("message:received");
       socket.off("route:updated");
+      socket.off("route-change:created");
     };
   }, [currentRole]);
 

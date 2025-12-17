@@ -217,9 +217,7 @@ export async function registerRoutes(
     });
 
     // Handle route recalculation request
-    socket.on("route:recalculate", async () => {
-      // This would normally call GraphHopper API
-      // For now, emit a placeholder route
+    socket.on("route:recalculate", async (data?: { reason?: string; vehicleId?: string; latitude?: number; longitude?: number }) => {
       const mission = await storage.getCurrentMission();
       if (mission) {
         const route = await calculateRoute(
@@ -228,7 +226,26 @@ export async function registerRoutes(
           mission.extractionPointLat,
           mission.extractionPointLng
         );
+        
+        // Record the route change for debriefing
+        // Use vehicleId from data if provided, otherwise fall back to socket's vehicleId
+        const triggeredBy = data?.vehicleId ?? vehicleId ?? null;
+        try {
+          await storage.createRouteChange({
+            missionId: mission.id,
+            reason: data?.reason ?? "Recalcul automatique",
+            triggeredByVehicleId: triggeredBy,
+            justification: null,
+            previousRoute: null,
+            newRoute: JSON.stringify(route),
+          });
+        } catch (error) {
+          console.error("Failed to record route change:", error);
+        }
+        
+        // Notify clients of route change (for cache invalidation)
         io.emit("route:updated", route);
+        io.emit("route-change:created");
       }
     });
 
@@ -593,6 +610,18 @@ CONSIGNES:
       res.json(changes);
     } catch (error) {
       res.status(500).json({ error: "Failed to get route changes" });
+    }
+  });
+
+  // ===== CONNECTION LOGS API =====
+  
+  // Get connection logs (for debriefing)
+  app.get("/api/connection-logs", async (req, res) => {
+    try {
+      const logs = await storage.getConnectionLogs();
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get connection logs" });
     }
   });
 
