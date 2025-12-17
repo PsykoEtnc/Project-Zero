@@ -163,7 +163,7 @@ export function WaypointManager({
                   Ajouter
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="z-[9999]">
                 <DialogHeader>
                   <DialogTitle>
                     {editingWaypoint ? "Modifier le waypoint" : "Nouveau waypoint"}
