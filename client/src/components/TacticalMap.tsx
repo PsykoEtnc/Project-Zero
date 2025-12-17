@@ -251,7 +251,7 @@ export function TacticalMap({
             <div className="flex items-center gap-2 bg-background/80 px-3 py-2 rounded-md shadow-sm border">
               <MapPin className="w-4 h-4 text-primary" />
               <span className="text-xs font-medium">
-                {isPlacingWaypoint ? "Mode placement actif" : "Waypoints"}
+                {isPlacingWaypoint ? "Mode placement actif" : "Zones de danger"}
               </span>
             </div>
 
@@ -262,7 +262,7 @@ export function TacticalMap({
                 className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-3 py-2 rounded-md text-sm font-medium shadow hover:opacity-90"
               >
                 <Plus className="w-4 h-4" />
-                {isPlacingWaypoint ? "Sélectionnez un point" : "Ajouter un waypoint"}
+                {isPlacingWaypoint ? "Sélectionnez un point" : "Ajouter une zone de danger"}
               </button>
             )}
           </div>
@@ -276,7 +276,7 @@ export function TacticalMap({
               <p className="text-xs text-muted-foreground mt-1">
                 {clickedPosition
                   ? `${clickedPosition.lat.toFixed(4)}, ${clickedPosition.lng.toFixed(4)}`
-                  : "Touchez la carte pour définir le waypoint"}
+                  : "Touchez la carte pour définir la zone de danger"}
               </p>
             </div>
           )}
@@ -370,39 +370,77 @@ export function TacticalMap({
           </Circle>
         ))}
 
-        {/* Waypoints */}
-        {waypoints.map((waypoint, index) => (
-          <Marker
-            key={waypoint.id}
-            position={[waypoint.latitude, waypoint.longitude]}
-            icon={createWaypointIcon(waypoint.type ?? "CHECKPOINT", waypoint.orderIndex ?? index)}
-            eventHandlers={{
-              click: () => onWaypointClick?.(waypoint),
-            }}
-          >
-            <Popup>
-              <div className="p-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                    {(waypoint.orderIndex ?? index) + 1}
-                  </span>
-                  <strong className="text-sm">{waypoint.code} - {waypoint.name}</strong>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {WAYPOINT_TYPES[waypoint.type as keyof typeof WAYPOINT_TYPES]?.name ?? "Point"}
-                </p>
-                {waypoint.description && (
-                  <p className="text-xs mt-1">{waypoint.description}</p>
-                )}
-                {waypoint.estimatedArrival && (
+        {/* Danger zones and other waypoints */}
+        {waypoints.map((waypoint, index) => {
+          const isDangerZone = waypoint.type === "DANGER_ZONE";
+
+          if (isDangerZone) {
+            return (
+              <Circle
+                key={waypoint.id}
+                center={[waypoint.latitude, waypoint.longitude]}
+                radius={10}
+                pathOptions={{
+                  color: "#dc2626",
+                  fillColor: "#9ca3af",
+                  fillOpacity: 0.25,
+                  weight: 2,
+                }}
+                eventHandlers={{
+                  click: () => onWaypointClick?.(waypoint),
+                }}
+              >
+                <Popup>
+                  <div className="p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold">
+                        {(waypoint.orderIndex ?? index) + 1}
+                      </span>
+                      <strong className="text-sm">{waypoint.code} - {waypoint.name}</strong>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Zone de danger (rayon 10 m)</p>
+                    {waypoint.description && (
+                      <p className="text-xs mt-1">{waypoint.description}</p>
+                    )}
+                  </div>
+                </Popup>
+              </Circle>
+            );
+          }
+
+          return (
+            <Marker
+              key={waypoint.id}
+              position={[waypoint.latitude, waypoint.longitude]}
+              icon={createWaypointIcon(waypoint.type ?? "CHECKPOINT", waypoint.orderIndex ?? index)}
+              eventHandlers={{
+                click: () => onWaypointClick?.(waypoint),
+              }}
+            >
+              <Popup>
+                <div className="p-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                      {(waypoint.orderIndex ?? index) + 1}
+                    </span>
+                    <strong className="text-sm">{waypoint.code} - {waypoint.name}</strong>
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    ETA: {new Date(waypoint.estimatedArrival).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    {WAYPOINT_TYPES[waypoint.type as keyof typeof WAYPOINT_TYPES]?.name ?? "Point"}
                   </p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+                  {waypoint.description && (
+                    <p className="text-xs mt-1">{waypoint.description}</p>
+                  )}
+                  {waypoint.estimatedArrival && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ETA: {new Date(waypoint.estimatedArrival).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* Vehicles */}
         {visibleVehicles.map((vehicle) => {
