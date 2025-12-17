@@ -8,11 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { MapPin, Plus, Trash2, Edit, Navigation } from "lucide-react";
+import { AlertTriangle, MapPin, Plus, Trash2, Edit } from "lucide-react";
 
 interface WaypointManagerProps {
   onSelectWaypoint?: (waypoint: Waypoint) => void;
@@ -36,7 +35,7 @@ export function WaypointManager({
   const [formData, setFormData] = useState({
     name: "",
     code: "",
-    type: "CHECKPOINT" as WaypointType,
+    type: "DANGER_ZONE" as WaypointType,
     latitude: 0,
     longitude: 0,
     orderIndex: 0,
@@ -90,7 +89,7 @@ export function WaypointManager({
     setFormData({
       name: "",
       code: "",
-      type: "CHECKPOINT",
+      type: "DANGER_ZONE",
       latitude: 0,
       longitude: 0,
       orderIndex: waypoints.length,
@@ -106,7 +105,7 @@ export function WaypointManager({
         latitude: clickedPosition.lat,
         longitude: clickedPosition.lng,
         orderIndex: waypoints.length,
-        code: `WP${String(waypoints.length + 1).padStart(2, "0")}`,
+        code: `DZ${String(waypoints.length + 1).padStart(2, "0")}`,
       }));
     }
     setEditingWaypoint(null);
@@ -117,7 +116,7 @@ export function WaypointManager({
     setFormData({
       name: waypoint.name,
       code: waypoint.code,
-      type: (waypoint.type as WaypointType) ?? "CHECKPOINT",
+      type: "DANGER_ZONE",
       latitude: waypoint.latitude,
       longitude: waypoint.longitude,
       orderIndex: waypoint.orderIndex ?? 0,
@@ -129,10 +128,11 @@ export function WaypointManager({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = { ...formData, type: "DANGER_ZONE" as WaypointType };
     if (editingWaypoint) {
-      updateWaypointMutation.mutate({ id: editingWaypoint.id, data: formData });
+      updateWaypointMutation.mutate({ id: editingWaypoint.id, data: payload });
     } else {
-      createWaypointMutation.mutate(formData);
+      createWaypointMutation.mutate(payload);
     }
     onClearClickedPosition?.();
   };
@@ -156,21 +156,21 @@ export function WaypointManager({
       <CardHeader className="flex-shrink-0 pb-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Navigation className="w-4 h-4" />
-            Waypoints
+            <AlertTriangle className="w-4 h-4" />
+            Zones de danger
           </CardTitle>
           {canManageWaypoints && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" onClick={openCreateDialog} data-testid="button-add-waypoint">
                   <Plus className="w-4 h-4 mr-1" />
-                  Ajouter
+                  Ajouter une zone
                 </Button>
               </DialogTrigger>
               <DialogContent className="z-[9999]">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingWaypoint ? "Modifier le waypoint" : "Nouveau waypoint"}
+                    {editingWaypoint ? "Modifier la zone" : "Nouvelle zone de danger"}
                   </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -181,28 +181,17 @@ export function WaypointManager({
                         id="code"
                         value={formData.code}
                         onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                        placeholder="WP01"
+                        placeholder="DZ01"
                         required
                         data-testid="input-waypoint-code"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="type">Type</Label>
-                      <Select
-                        value={formData.type}
-                        onValueChange={(value) => setFormData({ ...formData, type: value as WaypointType })}
-                      >
-                        <SelectTrigger data-testid="select-waypoint-type">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(WAYPOINT_TYPES).map(([key, value]) => (
-                            <SelectItem key={key} value={key}>
-                              {value.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Type</Label>
+                      <div className="flex items-center gap-2 rounded-md border px-3 py-2 bg-muted/30">
+                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                        <span className="text-sm font-medium">Zone de danger (10 m)</span>
+                      </div>
                     </div>
                   </div>
                   
@@ -212,7 +201,7 @@ export function WaypointManager({
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Point de contrôle Alpha"
+                      placeholder="Zone à sécuriser"
                       required
                       data-testid="input-waypoint-name"
                     />
@@ -280,10 +269,10 @@ export function WaypointManager({
           {waypoints.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Aucun waypoint défini</p>
+              <p className="text-sm">Aucune zone de danger définie</p>
               {canManageWaypoints && (
                 <p className="text-xs mt-1">
-                  Cliquez sur la carte pour ajouter un point
+                  Cliquez sur la carte pour ajouter une zone à sécuriser
                 </p>
               )}
             </div>
@@ -302,7 +291,7 @@ export function WaypointManager({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${getTypeColor(waypoint.type ?? "CHECKPOINT")}`}>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${getTypeColor(waypoint.type ?? "DANGER_ZONE")}`}>
                         {(waypoint.orderIndex ?? index) + 1}
                       </span>
                       <div className="min-w-0">
