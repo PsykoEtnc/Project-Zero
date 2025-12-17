@@ -19,6 +19,7 @@ interface WaypointManagerProps {
   selectedWaypoint?: Waypoint | null;
   clickedPosition?: { lat: number; lng: number } | null;
   onClearClickedPosition?: () => void;
+  enableMapPlacement?: boolean;
 }
 
 export function WaypointManager({
@@ -26,6 +27,7 @@ export function WaypointManager({
   selectedWaypoint,
   clickedPosition,
   onClearClickedPosition,
+  enableMapPlacement = false,
 }: WaypointManagerProps) {
   const { currentRole, isPC } = useRole();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -47,10 +49,10 @@ export function WaypointManager({
 
   // Auto-open dialog when map is clicked
   useEffect(() => {
-    if (clickedPosition && isPC) {
+    if (clickedPosition && (enableMapPlacement || isPC)) {
       openCreateDialog();
     }
-  }, [clickedPosition]);
+  }, [clickedPosition, enableMapPlacement, isPC]);
 
   const createWaypointMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -147,6 +149,8 @@ export function WaypointManager({
     }
   };
 
+  const canManageWaypoints = isPC || enableMapPlacement;
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0 pb-2">
@@ -155,7 +159,7 @@ export function WaypointManager({
             <Navigation className="w-4 h-4" />
             Waypoints
           </CardTitle>
-          {isPC && (
+          {canManageWaypoints && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" onClick={openCreateDialog} data-testid="button-add-waypoint">
@@ -277,7 +281,7 @@ export function WaypointManager({
             <div className="text-center text-muted-foreground py-8">
               <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">Aucun waypoint défini</p>
-              {isPC && (
+              {canManageWaypoints && (
                 <p className="text-xs mt-1">
                   Cliquez sur la carte pour ajouter un point
                 </p>

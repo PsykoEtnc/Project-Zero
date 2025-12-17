@@ -4,7 +4,7 @@ import L from "leaflet";
 import { useRole } from "@/contexts/RoleContext";
 import type { Vehicle, Alert, Zone, Waypoint } from "@shared/schema";
 import { VEHICLE_TYPES, ALERT_TYPES, WAYPOINT_TYPES } from "@shared/schema";
-import { AlertTriangle, Target, Construction, Car, Users, Info, Bomb } from "lucide-react";
+import { AlertTriangle, Target, Construction, Car, Users, Info, Bomb, MapPin, Plus } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
 // Fix for default Leaflet marker icons
@@ -181,6 +181,9 @@ interface TacticalMapProps {
   selectedVehicleId?: string | null;
   replayPositions?: Map<string, { lat: number; lng: number; heading: number }>;
   className?: string;
+  onStartWaypointPlacement?: () => void;
+  clickedPosition?: { lat: number; lng: number } | null;
+  isPlacingWaypoint?: boolean;
 }
 
 export function TacticalMap({
@@ -195,6 +198,9 @@ export function TacticalMap({
   selectedVehicleId,
   replayPositions,
   className = "",
+  onStartWaypointPlacement,
+  clickedPosition,
+  isPlacingWaypoint = false,
 }: TacticalMapProps) {
   const { currentRole, canSeeFullMap } = useRole();
   const mapRef = useRef<L.Map | null>(null);
@@ -239,6 +245,44 @@ export function TacticalMap({
 
   return (
     <div className={`relative ${className}`} data-testid="map-container">
+      {(onStartWaypointPlacement || clickedPosition) && (
+        <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-none flex flex-col gap-2">
+          <div className="flex justify-between items-center gap-2 pointer-events-auto">
+            <div className="flex items-center gap-2 bg-background/80 px-3 py-2 rounded-md shadow-sm border">
+              <MapPin className="w-4 h-4 text-primary" />
+              <span className="text-xs font-medium">
+                {isPlacingWaypoint ? "Mode placement actif" : "Waypoints"}
+              </span>
+            </div>
+
+            {onStartWaypointPlacement && (
+              <button
+                type="button"
+                onClick={onStartWaypointPlacement}
+                className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-3 py-2 rounded-md text-sm font-medium shadow hover:opacity-90"
+              >
+                <Plus className="w-4 h-4" />
+                {isPlacingWaypoint ? "Sélectionnez un point" : "Ajouter un waypoint"}
+              </button>
+            )}
+          </div>
+
+          {(isPlacingWaypoint || clickedPosition) && (
+            <div className="pointer-events-auto ml-auto max-w-md bg-background/90 border rounded-md shadow-sm px-3 py-2 text-sm">
+              <p className="font-medium flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                {clickedPosition ? "Position sélectionnée" : "Cliquez sur la carte"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {clickedPosition
+                  ? `${clickedPosition.lat.toFixed(4)}, ${clickedPosition.lng.toFixed(4)}`
+                  : "Touchez la carte pour définir le waypoint"}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <MapContainer
         center={currentVehicle ? [currentVehicle.latitude, currentVehicle.longitude] : defaultCenter}
         zoom={defaultZoom}

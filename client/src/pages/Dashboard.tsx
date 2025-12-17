@@ -36,6 +36,7 @@ export function Dashboard() {
   const [isReplayMode, setIsReplayMode] = useState(false);
   const [replayPositions, setReplayPositions] = useState<Map<string, { lat: number; lng: number; heading: number }>>(new Map());
   const [clickedPosition, setClickedPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [isPlacingWaypoint, setIsPlacingWaypoint] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false
   );
@@ -195,6 +196,22 @@ export function Dashboard() {
       title: "Message envoyé",
       description: targetVehicleId ? `Message envoyé à ${targetVehicleId}` : "Message diffusé à toutes les unités",
     });
+  };
+
+  const handleMapClick = (lat: number, lng: number) => {
+    if (!isPC && !isPlacingWaypoint) return;
+
+    setClickedPosition({ lat, lng });
+    setIsPlacingWaypoint(false);
+  };
+
+  const handleStartWaypointPlacement = () => {
+    setIsPlacingWaypoint(true);
+    setClickedPosition(null);
+
+    if (!isLargeScreen) {
+      setActiveTab("map");
+    }
   };
 
   // Calculate pending alerts count
@@ -357,7 +374,10 @@ export function Dashboard() {
                     extractionPoint={extractionPoint}
                     selectedVehicleId={selectedVehicleId}
                     onWaypointClick={setSelectedWaypoint}
-                    onMapClick={isPC ? (lat, lng) => setClickedPosition({ lat, lng }) : undefined}
+                    onMapClick={handleMapClick}
+                    onStartWaypointPlacement={handleStartWaypointPlacement}
+                    clickedPosition={clickedPosition}
+                    isPlacingWaypoint={isPlacingWaypoint}
                     replayPositions={isReplayMode ? replayPositions : undefined}
                     className="w-full h-full"
                   />
@@ -389,6 +409,7 @@ export function Dashboard() {
                       onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
                       selectedWaypoint={selectedWaypoint}
                       clickedPosition={clickedPosition}
+                      enableMapPlacement={isPC || isPlacingWaypoint}
                       onClearClickedPosition={() => setClickedPosition(null)}
                     />
                   ) : (
@@ -417,6 +438,16 @@ export function Dashboard() {
                           ))}
                         </div>
                       )}
+
+                      <div className="sr-only">
+                        <WaypointManager
+                          onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
+                          selectedWaypoint={selectedWaypoint}
+                          clickedPosition={clickedPosition}
+                          enableMapPlacement={isPlacingWaypoint}
+                          onClearClickedPosition={() => setClickedPosition(null)}
+                        />
+                      </div>
                     </div>
                   )}
                 </TabsContent>
@@ -474,7 +505,10 @@ export function Dashboard() {
                   extractionPoint={extractionPoint}
                   selectedVehicleId={selectedVehicleId}
                   onWaypointClick={setSelectedWaypoint}
-                  onMapClick={isPC ? (lat, lng) => setClickedPosition({ lat, lng }) : undefined}
+                  onMapClick={handleMapClick}
+                  onStartWaypointPlacement={handleStartWaypointPlacement}
+                  clickedPosition={clickedPosition}
+                  isPlacingWaypoint={isPlacingWaypoint}
                   replayPositions={isReplayMode ? replayPositions : undefined}
                   className="w-full h-full"
                 />
@@ -497,6 +531,7 @@ export function Dashboard() {
                         onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
                         selectedWaypoint={selectedWaypoint}
                         clickedPosition={clickedPosition}
+                        enableMapPlacement={isPC || isPlacingWaypoint}
                         onClearClickedPosition={() => setClickedPosition(null)}
                       />
                     </div>
