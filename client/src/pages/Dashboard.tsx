@@ -95,7 +95,7 @@ export function Dashboard() {
     queryKey: ["/api/mission/current"],
   });
 
-  // Fetch waypoints
+  // Fetch danger zones (stored as waypoints)
   const { data: waypoints = [] } = useQuery<Waypoint[]>({
     queryKey: ["/api/waypoints"],
   });
@@ -345,7 +345,7 @@ export function Dashboard() {
                   <TabsTrigger value="status" data-testid="tab-status">
                     <Users className="w-4 h-4" />
                   </TabsTrigger>
-                  <TabsTrigger value="waypoints" data-testid="tab-waypoints">
+                  <TabsTrigger value="danger-zones" data-testid="tab-waypoints">
                     <Navigation className="w-4 h-4" />
                   </TabsTrigger>
                   {isPC && (
@@ -403,7 +403,7 @@ export function Dashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="waypoints" className="flex-1 m-0 p-4 overflow-auto">
+                <TabsContent value="danger-zones" className="flex-1 m-0 p-4 overflow-auto">
                   {isPC ? (
                     <WaypointManager
                       onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
@@ -414,9 +414,9 @@ export function Dashboard() {
                     />
                   ) : (
                     <div className="space-y-3">
-                      <h3 className="font-semibold text-sm">Points de passage</h3>
+                      <h3 className="font-semibold text-sm">Zones de danger</h3>
                       {waypoints.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Aucun waypoint défini</p>
+                        <p className="text-sm text-muted-foreground">Aucune zone de danger définie</p>
                       ) : (
                         <div className="space-y-2">
                           {waypoints.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((wp, idx) => (
