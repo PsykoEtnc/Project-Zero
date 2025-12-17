@@ -12,6 +12,7 @@ import { MessageNotification } from "@/components/MessageNotification";
 import { BriefingView } from "@/components/BriefingView";
 import { DebriefingView } from "@/components/DebriefingView";
 import { WaypointManager } from "@/components/WaypointManager";
+import { AzimuthNavigation } from "@/components/AzimuthNavigation";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useToast } from "@/hooks/use-toast";
@@ -50,7 +51,7 @@ export function Dashboard() {
   } = useWebSocket(currentRole);
 
   // Geolocation
-  const { latitude, longitude, heading, speed, hasGPS, simulatePosition } = useGeolocation({
+  const { latitude, longitude, heading, speed, hasGPS, gpsLostDuration, simulatePosition } = useGeolocation({
     updateInterval: 3000,
     onPositionChange: useCallback((lat: number, lng: number, h: number, s: number) => {
       // Only send valid coordinates
@@ -397,6 +398,20 @@ export function Dashboard() {
         <>
           <QuickAlertCreator onCreateAlert={handleCreateAlert} />
           <CameraAnalysis onAnalyze={handleAnalyzeImage} onSendToPC={handleSendToPC} />
+          
+          {/* Azimuth navigation - shows when GPS is lost for 30+ seconds */}
+          <div className="fixed bottom-24 left-4 right-4 z-40 lg:left-auto lg:right-4 lg:w-80">
+            <AzimuthNavigation
+              currentLat={latitude}
+              currentLng={longitude}
+              lastKnownLat={latitude}
+              lastKnownLng={longitude}
+              lastKnownHeading={heading}
+              waypoints={waypoints}
+              gpsLostDuration={gpsLostDuration}
+              hasGPS={hasGPS}
+            />
+          </div>
         </>
       )}
     </div>

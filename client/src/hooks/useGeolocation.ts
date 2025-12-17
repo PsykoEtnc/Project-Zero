@@ -8,6 +8,8 @@ interface GeolocationState {
   speed: number | null;
   hasGPS: boolean;
   error: string | null;
+  lastUpdateTime: number | null;
+  gpsLostDuration: number; // seconds since last GPS update
 }
 
 interface UseGeolocationOptions {
@@ -31,6 +33,8 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     speed: null,
     hasGPS: false,
     error: null,
+    lastUpdateTime: null,
+    gpsLostDuration: 0,
   });
 
   const updatePosition = useCallback((position: GeolocationPosition) => {
@@ -44,6 +48,8 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
       speed: speed ? speed * 3.6 : 0, // Convert m/s to km/h
       hasGPS: true,
       error: null,
+      lastUpdateTime: Date.now(),
+      gpsLostDuration: 0,
     });
 
     if (onPositionChange) {
@@ -107,6 +113,24 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     };
   }, [enableHighAccuracy, updateInterval, updatePosition, handleError]);
 
+  // Track GPS lost duration
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setState(prev => {
+        if (prev.lastUpdateTime && !prev.hasGPS) {
+          const duration = Math.floor((Date.now() - prev.lastUpdateTime) / 1000);
+          return { ...prev, gpsLostDuration: duration };
+        }
+        if (!prev.hasGPS && !prev.lastUpdateTime) {
+          return { ...prev, gpsLostDuration: prev.gpsLostDuration + 1 };
+        }
+        return prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Simulate position for development/demo
   const simulatePosition = useCallback((lat: number, lng: number, heading: number = 0, speed: number = 0) => {
     setState({
@@ -117,6 +141,8 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
       speed,
       hasGPS: true,
       error: null,
+      lastUpdateTime: Date.now(),
+      gpsLostDuration: 0,
     });
 
     if (onPositionChange) {
