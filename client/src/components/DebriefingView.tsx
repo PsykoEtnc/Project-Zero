@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DebriefingPdfExport } from "./DebriefingPdfExport";
 import type { Mission, Alert, ConnectionLog, RouteChange } from "@shared/schema";
-import { FileText, MapPin, AlertTriangle, WifiOff, Clock, Route, Download, RefreshCw, GitBranch } from "lucide-react";
+import { FileText, MapPin, AlertTriangle, WifiOff, Clock, Route, RefreshCw, GitBranch } from "lucide-react";
 import { format, formatDuration, intervalToDuration } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -16,7 +17,6 @@ interface DebriefingViewProps {
   totalDistanceKm?: number;
   isLoading?: boolean;
   onGenerateDebrief?: () => void;
-  onExportPdf?: () => void;
   className?: string;
 }
 
@@ -28,7 +28,6 @@ export function DebriefingView({
   totalDistanceKm = 0,
   isLoading,
   onGenerateDebrief,
-  onExportPdf,
   className = "",
 }: DebriefingViewProps) {
   if (isLoading) {
@@ -265,16 +264,13 @@ export function DebriefingView({
               Régénérer
             </Button>
           )}
-          {onExportPdf && (
-            <Button
-              onClick={onExportPdf}
-              className="flex-1"
-              data-testid="button-export-pdf"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Exporter PDF
-            </Button>
-          )}
+          <DebriefingPdfExport
+            mission={mission}
+            alerts={alerts}
+            connectionLogs={connectionLogs}
+            routeChanges={routeChanges}
+            className="flex-1"
+          />
         </div>
       </CardContent>
     </Card>
