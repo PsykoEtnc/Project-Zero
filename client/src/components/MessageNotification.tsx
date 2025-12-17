@@ -34,7 +34,11 @@ export function MessageNotification({ messages, onMarkAsRead }: MessageNotificat
   }
 
   const handleDismiss = (messageId: string) => {
-    setDismissedIds(prev => new Set([...prev, messageId]));
+    setDismissedIds(prev => {
+      const next = new Set(prev);
+      next.add(messageId);
+      return next;
+    });
     onMarkAsRead(messageId);
   };
 

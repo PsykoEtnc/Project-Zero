@@ -6,7 +6,7 @@ import { AlertPanel } from "@/components/AlertPanel";
 import { VehicleStatus } from "@/components/VehicleStatus";
 import { RouteInfo } from "@/components/RouteInfo";
 import { QuickAlertCreator } from "@/components/QuickAlertCreator";
-import { CameraAnalysis } from "@/components/CameraAnalysis";
+import { CameraAnalysis, type AnalysisResult } from "@/components/CameraAnalysis";
 import { PCMessageSender } from "@/components/PCMessageSender";
 import { MessageNotification } from "@/components/MessageNotification";
 import { BriefingView } from "@/components/BriefingView";
@@ -36,6 +36,9 @@ export function Dashboard() {
   const [isReplayMode, setIsReplayMode] = useState(false);
   const [replayPositions, setReplayPositions] = useState<Map<string, { lat: number; lng: number; heading: number }>>(new Map());
   const [clickedPosition, setClickedPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLargeScreen, setIsLargeScreen] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false
+  );
 
   // WebSocket connection
   const {
@@ -108,6 +111,16 @@ export function Dashboard() {
     enabled: isPC,
   });
 
+  // Track viewport changes to render the appropriate layout and avoid Leaflet sizing issues
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const handleChange = (event: MediaQueryListEvent) => setIsLargeScreen(event.matches);
+
+    setIsLargeScreen(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
   // Handle stealth mode toggle
   const handleToggleStealth = () => {
     const newStealthMode = !isStealthMode;
@@ -158,17 +171,18 @@ export function Dashboard() {
   };
 
   // Handle image analysis
-  const handleAnalyzeImage = async (imageBase64: string) => {
+  const handleAnalyzeImage = async (imageBase64: string): Promise<AnalysisResult> => {
     try {
       const response = await apiRequest("POST", "/api/analyze-image", { image: imageBase64 });
-      return response;
+      const result = await response.json();
+      return result as AnalysisResult;
     } catch (error) {
       throw error;
     }
   };
 
   // Handle sending analysis to PC
-  const handleSendToPC = async (imageBase64: string, analysis: any) => {
+  const handleSendToPC = async (imageBase64: string, analysis: AnalysisResult) => {
     if (latitude && longitude) {
       createAlert("OTHER", latitude, longitude, analysis.description, imageBase64);
     }
@@ -298,41 +312,159 @@ export function Dashboard() {
         {/* Main content area */}
         <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Map and tabs for mobile */}
-          <div className="flex-1 flex flex-col overflow-hidden lg:hidden">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="mx-4 mt-2 grid" style={{ gridTemplateColumns: isPC ? 'repeat(6, 1fr)' : 'repeat(4, 1fr)' }}>
-                <TabsTrigger value="map" data-testid="tab-map">
-                  <MapIcon className="w-4 h-4" />
-                </TabsTrigger>
-                <TabsTrigger value="alerts" data-testid="tab-alerts">
-                  <AlertTriangle className="w-4 h-4" />
-                  {pendingAlertsCount > 0 && (
-                    <span className="ml-1 text-xs">{pendingAlertsCount}</span>
+          {!isLargeScreen && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                <TabsList className="mx-4 mt-2 grid" style={{ gridTemplateColumns: isPC ? 'repeat(6, 1fr)' : 'repeat(4, 1fr)' }}>
+                  <TabsTrigger value="map" data-testid="tab-map">
+                    <MapIcon className="w-4 h-4" />
+                  </TabsTrigger>
+                  <TabsTrigger value="alerts" data-testid="tab-alerts">
+                    <AlertTriangle className="w-4 h-4" />
+                    {pendingAlertsCount > 0 && (
+                      <span className="ml-1 text-xs">{pendingAlertsCount}</span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="status" data-testid="tab-status">
+                    <Users className="w-4 h-4" />
+                  </TabsTrigger>
+                  <TabsTrigger value="waypoints" data-testid="tab-waypoints">
+                    <Navigation className="w-4 h-4" />
+                  </TabsTrigger>
+                  {isPC && (
+                    <>
+                      <TabsTrigger value="mission" data-testid="tab-mission">
+                        <FileText className="w-4 h-4" />
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="replay"
+                        data-testid="tab-replay"
+                        onClick={() => setIsReplayMode(true)}
+                      >
+                        <Play className="w-4 h-4" />
+                      </TabsTrigger>
+                    </>
                   )}
-                </TabsTrigger>
-                <TabsTrigger value="status" data-testid="tab-status">
-                  <Users className="w-4 h-4" />
-                </TabsTrigger>
-                <TabsTrigger value="waypoints" data-testid="tab-waypoints">
-                  <Navigation className="w-4 h-4" />
-                </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="map" className="flex-1 m-0 p-0">
+                  <TacticalMap
+                    vehicles={vehicles}
+                    alerts={alerts}
+                    zones={zones}
+                    waypoints={waypoints}
+                    route={route}
+                    extractionPoint={extractionPoint}
+                    selectedVehicleId={selectedVehicleId}
+                    onWaypointClick={setSelectedWaypoint}
+                    onMapClick={isPC ? (lat, lng) => setClickedPosition({ lat, lng }) : undefined}
+                    replayPositions={isReplayMode ? replayPositions : undefined}
+                    className="w-full h-full"
+                  />
+                </TabsContent>
+
+                <TabsContent value="alerts" className="flex-1 m-0 p-4 overflow-auto">
+                  <AlertPanel
+                    alerts={alerts}
+                    onValidateAlert={validateAlert}
+                    onDismissAlert={dismissAlert}
+                    className="h-full"
+                  />
+                </TabsContent>
+
+                <TabsContent value="status" className="flex-1 m-0 p-4 overflow-auto">
+                  <div className="space-y-4">
+                    <VehicleStatus
+                      vehicles={vehicles}
+                      selectedVehicleId={selectedVehicleId}
+                      onSelectVehicle={setSelectedVehicleId}
+                    />
+                    {isPC && <PCMessageSender onSendMessage={handleSendMessage} />}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="waypoints" className="flex-1 m-0 p-4 overflow-auto">
+                  {isPC ? (
+                    <WaypointManager
+                      onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
+                      selectedWaypoint={selectedWaypoint}
+                      clickedPosition={clickedPosition}
+                      onClearClickedPosition={() => setClickedPosition(null)}
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-sm">Points de passage</h3>
+                      {waypoints.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Aucun waypoint défini</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {waypoints.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((wp, idx) => (
+                            <div
+                              key={wp.id}
+                              className="flex items-center gap-3 p-3 rounded-md bg-muted/50"
+                              onClick={() => setSelectedWaypoint(wp)}
+                            >
+                              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                                {(wp.orderIndex ?? idx) + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{wp.code} - {wp.name}</p>
+                                {wp.description && (
+                                  <p className="text-xs text-muted-foreground truncate">{wp.description}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+
                 {isPC && (
                   <>
-                    <TabsTrigger value="mission" data-testid="tab-mission">
-                      <FileText className="w-4 h-4" />
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="replay" 
-                      data-testid="tab-replay"
-                      onClick={() => setIsReplayMode(true)}
-                    >
-                      <Play className="w-4 h-4" />
-                    </TabsTrigger>
+                    <TabsContent value="mission" className="flex-1 m-0 p-4 overflow-auto">
+                      <div className="space-y-4">
+                        <BriefingView mission={mission ?? null} isLoading={missionLoading} />
+                        <DebriefingView
+                          mission={mission ?? null}
+                          alerts={alerts}
+                          connectionLogs={connectionLogs}
+                          routeChanges={routeChanges}
+                          isLoading={missionLoading}
+                        />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="replay" className="flex-1 m-0 p-4 overflow-auto">
+                      {mission && mission.status === "COMPLETED" ? (
+                        <MissionReplay
+                          mission={mission}
+                          alerts={alerts}
+                          onPositionUpdate={(positions) => setReplayPositions(positions)}
+                          onClose={() => {
+                            setIsReplayMode(false);
+                            setReplayPositions(new Map());
+                          }}
+                        />
+                      ) : (
+                        <div className="text-center text-muted-foreground py-8">
+                          <Play className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Le replay n'est disponible que pour les missions terminées</p>
+                        </div>
+                      )}
+                    </TabsContent>
                   </>
                 )}
-              </TabsList>
+              </Tabs>
+            </div>
+          )}
 
-              <TabsContent value="map" className="flex-1 m-0 p-0">
+          {/* Desktop layout */}
+          {isLargeScreen && (
+            <div className="flex flex-1 overflow-hidden">
+              {/* Map */}
+              <div className="flex-1 relative">
                 <TacticalMap
                   vehicles={vehicles}
                   alerts={alerts}
@@ -346,147 +478,33 @@ export function Dashboard() {
                   replayPositions={isReplayMode ? replayPositions : undefined}
                   className="w-full h-full"
                 />
-              </TabsContent>
+              </div>
 
-              <TabsContent value="alerts" className="flex-1 m-0 p-4 overflow-auto">
-                <AlertPanel
-                  alerts={alerts}
-                  onValidateAlert={validateAlert}
-                  onDismissAlert={dismissAlert}
-                  className="h-full"
-                />
-              </TabsContent>
-
-              <TabsContent value="status" className="flex-1 m-0 p-4 overflow-auto">
-                <div className="space-y-4">
-                  <VehicleStatus
-                    vehicles={vehicles}
-                    selectedVehicleId={selectedVehicleId}
-                    onSelectVehicle={setSelectedVehicleId}
-                  />
-                  {isPC && <PCMessageSender onSendMessage={handleSendMessage} />}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="waypoints" className="flex-1 m-0 p-4 overflow-auto">
-                {isPC ? (
-                  <WaypointManager
-                    onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
-                    selectedWaypoint={selectedWaypoint}
-                    clickedPosition={clickedPosition}
-                    onClearClickedPosition={() => setClickedPosition(null)}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-sm">Points de passage</h3>
-                    {waypoints.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Aucun waypoint défini</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {waypoints.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((wp, idx) => (
-                          <div 
-                            key={wp.id} 
-                            className="flex items-center gap-3 p-3 rounded-md bg-muted/50"
-                            onClick={() => setSelectedWaypoint(wp)}
-                          >
-                            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                              {(wp.orderIndex ?? idx) + 1}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{wp.code} - {wp.name}</p>
-                              {wp.description && (
-                                <p className="text-xs text-muted-foreground truncate">{wp.description}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </TabsContent>
-
+              {/* Right panel - Alerts and Waypoints (PC only) */}
               {isPC && (
-                <>
-                  <TabsContent value="mission" className="flex-1 m-0 p-4 overflow-auto">
-                    <div className="space-y-4">
-                      <BriefingView mission={mission ?? null} isLoading={missionLoading} />
-                      <DebriefingView
-                        mission={mission ?? null}
+                <aside className="w-80 border-l border-border bg-sidebar overflow-hidden flex flex-col">
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 overflow-hidden">
+                      <AlertPanel
                         alerts={alerts}
-                        connectionLogs={connectionLogs}
-                        routeChanges={routeChanges}
-                        isLoading={missionLoading}
+                        onValidateAlert={validateAlert}
+                        onDismissAlert={dismissAlert}
+                        className="h-full border-0 rounded-none"
                       />
                     </div>
-                  </TabsContent>
-
-                  <TabsContent value="replay" className="flex-1 m-0 p-4 overflow-auto">
-                    {mission && mission.status === "COMPLETED" ? (
-                      <MissionReplay
-                        mission={mission}
-                        alerts={alerts}
-                        onPositionUpdate={(positions) => setReplayPositions(positions)}
-                        onClose={() => {
-                          setIsReplayMode(false);
-                          setReplayPositions(new Map());
-                        }}
+                    <div className="h-80 border-t border-border overflow-hidden">
+                      <WaypointManager
+                        onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
+                        selectedWaypoint={selectedWaypoint}
+                        clickedPosition={clickedPosition}
+                        onClearClickedPosition={() => setClickedPosition(null)}
                       />
-                    ) : (
-                      <div className="text-center text-muted-foreground py-8">
-                        <Play className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Le replay n'est disponible que pour les missions terminées</p>
-                      </div>
-                    )}
-                  </TabsContent>
-                </>
+                    </div>
+                  </div>
+                </aside>
               )}
-            </Tabs>
-          </div>
-
-          {/* Desktop layout */}
-          <div className="hidden lg:flex flex-1 overflow-hidden">
-            {/* Map */}
-            <div className="flex-1 relative">
-              <TacticalMap
-                vehicles={vehicles}
-                alerts={alerts}
-                zones={zones}
-                waypoints={waypoints}
-                route={route}
-                extractionPoint={extractionPoint}
-                selectedVehicleId={selectedVehicleId}
-                onWaypointClick={setSelectedWaypoint}
-                onMapClick={isPC ? (lat, lng) => setClickedPosition({ lat, lng }) : undefined}
-                replayPositions={isReplayMode ? replayPositions : undefined}
-                className="w-full h-full"
-              />
             </div>
-
-            {/* Right panel - Alerts and Waypoints (PC only) */}
-            {isPC && (
-              <aside className="w-80 border-l border-border bg-sidebar overflow-hidden flex flex-col">
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <div className="flex-1 overflow-hidden">
-                    <AlertPanel
-                      alerts={alerts}
-                      onValidateAlert={validateAlert}
-                      onDismissAlert={dismissAlert}
-                      className="h-full border-0 rounded-none"
-                    />
-                  </div>
-                  <div className="h-80 border-t border-border overflow-hidden">
-                    <WaypointManager
-                      onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
-                      selectedWaypoint={selectedWaypoint}
-                      clickedPosition={clickedPosition}
-                      onClearClickedPosition={() => setClickedPosition(null)}
-                    />
-                  </div>
-                </div>
-              </aside>
-            )}
-          </div>
+          )}
         </main>
       </div>
 
