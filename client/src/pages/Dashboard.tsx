@@ -300,7 +300,7 @@ export function Dashboard() {
           {/* Map and tabs for mobile */}
           <div className="flex-1 flex flex-col overflow-hidden lg:hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="mx-4 mt-2 grid" style={{ gridTemplateColumns: isPC ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
+              <TabsList className="mx-4 mt-2 grid" style={{ gridTemplateColumns: isPC ? 'repeat(6, 1fr)' : 'repeat(4, 1fr)' }}>
                 <TabsTrigger value="map" data-testid="tab-map">
                   <MapIcon className="w-4 h-4" />
                 </TabsTrigger>
@@ -310,16 +310,16 @@ export function Dashboard() {
                     <span className="ml-1 text-xs">{pendingAlertsCount}</span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="status" data-testid="tab-status">
+                  <Users className="w-4 h-4" />
+                </TabsTrigger>
+                <TabsTrigger value="waypoints" data-testid="tab-waypoints">
+                  <Navigation className="w-4 h-4" />
+                </TabsTrigger>
                 {isPC && (
                   <>
-                    <TabsTrigger value="units" data-testid="tab-units">
-                      <Users className="w-4 h-4" />
-                    </TabsTrigger>
                     <TabsTrigger value="mission" data-testid="tab-mission">
                       <FileText className="w-4 h-4" />
-                    </TabsTrigger>
-                    <TabsTrigger value="debrief" data-testid="tab-debrief">
-                      <Radio className="w-4 h-4" />
                     </TabsTrigger>
                     <TabsTrigger 
                       value="replay" 
@@ -357,32 +357,70 @@ export function Dashboard() {
                 />
               </TabsContent>
 
+              <TabsContent value="status" className="flex-1 m-0 p-4 overflow-auto">
+                <div className="space-y-4">
+                  <VehicleStatus
+                    vehicles={vehicles}
+                    selectedVehicleId={selectedVehicleId}
+                    onSelectVehicle={setSelectedVehicleId}
+                  />
+                  {isPC && <PCMessageSender onSendMessage={handleSendMessage} />}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="waypoints" className="flex-1 m-0 p-4 overflow-auto">
+                {isPC ? (
+                  <WaypointManager
+                    onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
+                    selectedWaypoint={selectedWaypoint}
+                    clickedPosition={clickedPosition}
+                    onClearClickedPosition={() => setClickedPosition(null)}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-sm">Points de passage</h3>
+                    {waypoints.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Aucun waypoint défini</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {waypoints.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)).map((wp, idx) => (
+                          <div 
+                            key={wp.id} 
+                            className="flex items-center gap-3 p-3 rounded-md bg-muted/50"
+                            onClick={() => setSelectedWaypoint(wp)}
+                          >
+                            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                              {(wp.orderIndex ?? idx) + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{wp.code} - {wp.name}</p>
+                              {wp.description && (
+                                <p className="text-xs text-muted-foreground truncate">{wp.description}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+
               {isPC && (
                 <>
-                  <TabsContent value="units" className="flex-1 m-0 p-4 overflow-auto">
+                  <TabsContent value="mission" className="flex-1 m-0 p-4 overflow-auto">
                     <div className="space-y-4">
-                      <VehicleStatus
-                        vehicles={vehicles}
-                        selectedVehicleId={selectedVehicleId}
-                        onSelectVehicle={setSelectedVehicleId}
+                      <BriefingView mission={mission ?? null} isLoading={missionLoading} />
+                      <DebriefingView
+                        mission={mission ?? null}
+                        alerts={alerts}
+                        connectionLogs={connectionLogs}
+                        routeChanges={routeChanges}
+                        isLoading={missionLoading}
                       />
-                      <PCMessageSender onSendMessage={handleSendMessage} />
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="mission" className="flex-1 m-0 p-4 overflow-auto">
-                    <BriefingView mission={mission ?? null} isLoading={missionLoading} />
-                  </TabsContent>
-                  
-                  <TabsContent value="debrief" className="flex-1 m-0 p-4 overflow-auto">
-                    <DebriefingView
-                      mission={mission ?? null}
-                      alerts={alerts}
-                      connectionLogs={connectionLogs}
-                      routeChanges={routeChanges}
-                      isLoading={missionLoading}
-                    />
-                  </TabsContent>
                   <TabsContent value="replay" className="flex-1 m-0 p-4 overflow-auto">
                     {mission && mission.status === "COMPLETED" ? (
                       <MissionReplay

@@ -109,11 +109,14 @@ const createWaypointIcon = (type: string, orderIndex: number) => {
     case "CUSTOM": color = "#6b7280"; break;
   }
   
+  // Ensure orderIndex is a valid number
+  const displayIndex = Number.isFinite(orderIndex) ? orderIndex + 1 : 1;
+  
   const size = 32;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">
     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}" stroke="#fff" stroke-width="2"/>
     <circle cx="12" cy="9" r="3" fill="#fff"/>
-    <text x="12" y="12" text-anchor="middle" fill="${color}" font-size="6" font-weight="bold">${orderIndex + 1}</text>
+    <text x="12" y="12" text-anchor="middle" fill="${color}" font-size="6" font-weight="bold">${displayIndex}</text>
   </svg>`;
   
   return L.divIcon({
