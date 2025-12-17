@@ -11,14 +11,15 @@ import { PCMessageSender } from "@/components/PCMessageSender";
 import { MessageNotification } from "@/components/MessageNotification";
 import { BriefingView } from "@/components/BriefingView";
 import { DebriefingView } from "@/components/DebriefingView";
+import { WaypointManager } from "@/components/WaypointManager";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { AlertType, Mission } from "@shared/schema";
-import { Map, AlertTriangle, FileText, Radio, Users } from "lucide-react";
+import type { AlertType, Mission, Waypoint } from "@shared/schema";
+import { Map, AlertTriangle, FileText, Radio, Users, Navigation } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -27,6 +28,7 @@ export function Dashboard() {
   const { toast } = useToast();
   const [isStealthMode, setIsStealthMode] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
   const [activeTab, setActiveTab] = useState("map");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -82,6 +84,11 @@ export function Dashboard() {
   // Fetch mission data
   const { data: mission, isLoading: missionLoading } = useQuery<Mission>({
     queryKey: ["/api/mission/current"],
+  });
+
+  // Fetch waypoints
+  const { data: waypoints = [] } = useQuery<Waypoint[]>({
+    queryKey: ["/api/waypoints"],
   });
 
   // Handle stealth mode toggle
@@ -256,9 +263,11 @@ export function Dashboard() {
                   vehicles={vehicles}
                   alerts={alerts}
                   zones={zones}
+                  waypoints={waypoints}
                   route={route}
                   extractionPoint={extractionPoint}
                   selectedVehicleId={selectedVehicleId}
+                  onWaypointClick={setSelectedWaypoint}
                   className="w-full h-full"
                 />
               </TabsContent>
@@ -301,22 +310,36 @@ export function Dashboard() {
                 vehicles={vehicles}
                 alerts={alerts}
                 zones={zones}
+                waypoints={waypoints}
                 route={route}
                 extractionPoint={extractionPoint}
                 selectedVehicleId={selectedVehicleId}
+                onWaypointClick={setSelectedWaypoint}
                 className="w-full h-full"
               />
             </div>
 
-            {/* Right panel - Alerts (PC only) */}
+            {/* Right panel - Alerts and Waypoints (PC only) */}
             {isPC && (
               <aside className="w-80 border-l border-border bg-sidebar overflow-hidden flex flex-col">
-                <AlertPanel
-                  alerts={alerts}
-                  onValidateAlert={validateAlert}
-                  onDismissAlert={dismissAlert}
-                  className="flex-1 border-0 rounded-none"
-                />
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <div className="flex-1 overflow-hidden">
+                    <AlertPanel
+                      alerts={alerts}
+                      onValidateAlert={validateAlert}
+                      onDismissAlert={dismissAlert}
+                      className="h-full border-0 rounded-none"
+                    />
+                  </div>
+                  <div className="h-80 border-t border-border overflow-hidden">
+                    <WaypointManager
+                      onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
+                      selectedWaypoint={selectedWaypoint}
+                      clickedPosition={null}
+                      onClearClickedPosition={() => {}}
+                    />
+                  </div>
+                </div>
               </aside>
             )}
           </div>

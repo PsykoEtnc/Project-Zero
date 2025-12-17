@@ -1,14 +1,17 @@
 import { 
-  vehicles, alerts, missions, connectionLogs, zones, pcMessages,
+  vehicles, alerts, missions, connectionLogs, zones, pcMessages, waypoints, routeChanges, positionHistory,
   type Vehicle, type InsertVehicle,
   type Alert, type InsertAlert,
   type Mission, type InsertMission,
   type ConnectionLog, type InsertConnectionLog,
   type Zone, type InsertZone,
   type PcMessage, type InsertPcMessage,
+  type Waypoint, type InsertWaypoint,
+  type RouteChange, type InsertRouteChange,
+  type PositionHistory, type InsertPositionHistory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, asc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -43,6 +46,22 @@ export interface IStorage {
   getMessages(): Promise<PcMessage[]>;
   createMessage(message: InsertPcMessage): Promise<PcMessage>;
   markMessageAsRead(id: string): Promise<PcMessage | undefined>;
+
+  // Waypoints
+  getWaypoints(missionId?: string): Promise<Waypoint[]>;
+  getWaypoint(id: string): Promise<Waypoint | undefined>;
+  createWaypoint(waypoint: InsertWaypoint): Promise<Waypoint>;
+  updateWaypoint(id: string, updates: Partial<Waypoint>): Promise<Waypoint | undefined>;
+  deleteWaypoint(id: string): Promise<void>;
+
+  // Route changes
+  getRouteChanges(missionId?: string): Promise<RouteChange[]>;
+  createRouteChange(change: InsertRouteChange): Promise<RouteChange>;
+
+  // Position history
+  getPositionHistory(missionId: string): Promise<PositionHistory[]>;
+  createPositionHistory(position: InsertPositionHistory): Promise<PositionHistory>;
+  clearPositionHistory(missionId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -214,6 +233,79 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pcMessages.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // Waypoints
+  async getWaypoints(missionId?: string): Promise<Waypoint[]> {
+    if (missionId) {
+      return await db.select().from(waypoints)
+        .where(eq(waypoints.missionId, missionId))
+        .orderBy(asc(waypoints.orderIndex));
+    }
+    return await db.select().from(waypoints).orderBy(asc(waypoints.orderIndex));
+  }
+
+  async getWaypoint(id: string): Promise<Waypoint | undefined> {
+    const [waypoint] = await db.select().from(waypoints).where(eq(waypoints.id, id));
+    return waypoint || undefined;
+  }
+
+  async createWaypoint(waypoint: InsertWaypoint): Promise<Waypoint> {
+    const [created] = await db.insert(waypoints).values({
+      ...waypoint,
+      id: randomUUID(),
+    }).returning();
+    return created;
+  }
+
+  async updateWaypoint(id: string, updates: Partial<Waypoint>): Promise<Waypoint | undefined> {
+    const [updated] = await db
+      .update(waypoints)
+      .set(updates)
+      .where(eq(waypoints.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteWaypoint(id: string): Promise<void> {
+    await db.delete(waypoints).where(eq(waypoints.id, id));
+  }
+
+  // Route changes
+  async getRouteChanges(missionId?: string): Promise<RouteChange[]> {
+    if (missionId) {
+      return await db.select().from(routeChanges)
+        .where(eq(routeChanges.missionId, missionId))
+        .orderBy(desc(routeChanges.createdAt));
+    }
+    return await db.select().from(routeChanges).orderBy(desc(routeChanges.createdAt));
+  }
+
+  async createRouteChange(change: InsertRouteChange): Promise<RouteChange> {
+    const [created] = await db.insert(routeChanges).values({
+      ...change,
+      id: randomUUID(),
+    }).returning();
+    return created;
+  }
+
+  // Position history
+  async getPositionHistory(missionId: string): Promise<PositionHistory[]> {
+    return await db.select().from(positionHistory)
+      .where(eq(positionHistory.missionId, missionId))
+      .orderBy(asc(positionHistory.timestamp));
+  }
+
+  async createPositionHistory(position: InsertPositionHistory): Promise<PositionHistory> {
+    const [created] = await db.insert(positionHistory).values({
+      ...position,
+      id: randomUUID(),
+    }).returning();
+    return created;
+  }
+
+  async clearPositionHistory(missionId: string): Promise<void> {
+    await db.delete(positionHistory).where(eq(positionHistory.missionId, missionId));
   }
 }
 

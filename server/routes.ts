@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { storage } from "./storage";
-import { insertAlertSchema, insertMissionSchema, insertPcMessageSchema, VEHICLE_TYPES } from "@shared/schema";
+import { insertAlertSchema, insertMissionSchema, insertPcMessageSchema, insertWaypointSchema, VEHICLE_TYPES } from "@shared/schema";
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
@@ -502,6 +502,109 @@ CONSIGNES:
     } catch (error) {
       console.error("Failed to generate briefing:", error);
       res.status(500).json({ error: "Failed to generate briefing" });
+    }
+  });
+
+  // ===== WAYPOINTS API =====
+  
+  // Get waypoints for current mission
+  app.get("/api/waypoints", async (req, res) => {
+    try {
+      const mission = await storage.getCurrentMission();
+      const waypoints = await storage.getWaypoints(mission?.id);
+      res.json(waypoints);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get waypoints" });
+    }
+  });
+
+  // Create a new waypoint
+  app.post("/api/waypoints", async (req, res) => {
+    try {
+      const mission = await storage.getCurrentMission();
+      
+      // Validate with Zod schema
+      const parsed = insertWaypointSchema.safeParse({
+        ...req.body,
+        missionId: mission?.id,
+      });
+      
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid waypoint data", details: parsed.error.flatten() });
+      }
+      
+      // Auto-increment orderIndex if not provided
+      const existingWaypoints = await storage.getWaypoints(mission?.id);
+      const orderIndex = parsed.data.orderIndex ?? existingWaypoints.length;
+      
+      const waypoint = await storage.createWaypoint({
+        ...parsed.data,
+        orderIndex,
+      });
+      
+      // Notify all clients via WebSocket
+      io.emit("waypoint:created", waypoint);
+      res.json(waypoint);
+    } catch (error) {
+      console.error("Failed to create waypoint:", error);
+      res.status(500).json({ error: "Failed to create waypoint" });
+    }
+  });
+
+  // Update a waypoint
+  app.patch("/api/waypoints/:id", async (req, res) => {
+    try {
+      // Partial validation - only validate fields that are provided
+      const updates = req.body;
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "No update data provided" });
+      }
+      
+      const waypoint = await storage.updateWaypoint(req.params.id, updates);
+      if (waypoint) {
+        io.emit("waypoint:updated", waypoint);
+        res.json(waypoint);
+      } else {
+        res.status(404).json({ error: "Waypoint not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update waypoint" });
+    }
+  });
+
+  // Delete a waypoint
+  app.delete("/api/waypoints/:id", async (req, res) => {
+    try {
+      await storage.deleteWaypoint(req.params.id);
+      io.emit("waypoint:deleted", { id: req.params.id });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete waypoint" });
+    }
+  });
+
+  // ===== ROUTE CHANGES API =====
+  
+  // Get route change history
+  app.get("/api/route-changes", async (req, res) => {
+    try {
+      const mission = await storage.getCurrentMission();
+      const changes = await storage.getRouteChanges(mission?.id);
+      res.json(changes);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get route changes" });
+    }
+  });
+
+  // ===== POSITION HISTORY API (for replay) =====
+  
+  // Get position history for replay
+  app.get("/api/position-history/:missionId", async (req, res) => {
+    try {
+      const history = await storage.getPositionHistory(req.params.missionId);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get position history" });
     }
   });
 

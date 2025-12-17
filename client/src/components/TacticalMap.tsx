@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useRole } from "@/contexts/RoleContext";
-import type { Vehicle, Alert, Zone } from "@shared/schema";
-import { VEHICLE_TYPES, ALERT_TYPES } from "@shared/schema";
+import type { Vehicle, Alert, Zone, Waypoint } from "@shared/schema";
+import { VEHICLE_TYPES, ALERT_TYPES, WAYPOINT_TYPES } from "@shared/schema";
 import { AlertTriangle, Target, Construction, Car, Users, Info, Bomb } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
@@ -95,6 +95,35 @@ const createExtractionIcon = () => {
   });
 };
 
+// Waypoint icons
+const createWaypointIcon = (type: string, orderIndex: number) => {
+  let color = "#3b82f6"; // Blue default
+  
+  switch (type) {
+    case "CHECKPOINT": color = "#2563eb"; break;
+    case "RALLY_POINT": color = "#7c3aed"; break;
+    case "EXTRACTION": color = "#22c55e"; break;
+    case "REFUEL": color = "#f59e0b"; break;
+    case "REST_AREA": color = "#06b6d4"; break;
+    case "DANGER_ZONE": color = "#dc2626"; break;
+    case "CUSTOM": color = "#6b7280"; break;
+  }
+  
+  const size = 32;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}" stroke="#fff" stroke-width="2"/>
+    <circle cx="12" cy="9" r="3" fill="#fff"/>
+    <text x="12" y="12" text-anchor="middle" fill="${color}" font-size="6" font-weight="bold">${orderIndex + 1}</text>
+  </svg>`;
+  
+  return L.divIcon({
+    html: svg,
+    className: "waypoint-marker",
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+  });
+};
+
 interface MapControllerProps {
   vehicles: Vehicle[];
   currentVehicleId: string | null;
@@ -126,9 +155,11 @@ interface TacticalMapProps {
   vehicles: Vehicle[];
   alerts: Alert[];
   zones: Zone[];
+  waypoints?: Waypoint[];
   route: [number, number][] | null;
   extractionPoint: { lat: number; lng: number } | null;
   onMapClick?: (lat: number, lng: number) => void;
+  onWaypointClick?: (waypoint: Waypoint) => void;
   selectedVehicleId?: string | null;
   className?: string;
 }
@@ -137,9 +168,11 @@ export function TacticalMap({
   vehicles,
   alerts,
   zones,
+  waypoints = [],
   route,
   extractionPoint,
   onMapClick,
+  onWaypointClick,
   selectedVehicleId,
   className = "",
 }: TacticalMapProps) {
@@ -265,6 +298,40 @@ export function TacticalMap({
               </div>
             </Popup>
           </Circle>
+        ))}
+
+        {/* Waypoints */}
+        {waypoints.map((waypoint, index) => (
+          <Marker
+            key={waypoint.id}
+            position={[waypoint.latitude, waypoint.longitude]}
+            icon={createWaypointIcon(waypoint.type ?? "CHECKPOINT", waypoint.orderIndex ?? index)}
+            eventHandlers={{
+              click: () => onWaypointClick?.(waypoint),
+            }}
+          >
+            <Popup>
+              <div className="p-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                    {(waypoint.orderIndex ?? index) + 1}
+                  </span>
+                  <strong className="text-sm">{waypoint.code} - {waypoint.name}</strong>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {WAYPOINT_TYPES[waypoint.type as keyof typeof WAYPOINT_TYPES]?.name ?? "Point"}
+                </p>
+                {waypoint.description && (
+                  <p className="text-xs mt-1">{waypoint.description}</p>
+                )}
+                {waypoint.estimatedArrival && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ETA: {new Date(waypoint.estimatedArrival).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
         ))}
 
         {/* Vehicles */}
