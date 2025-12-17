@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRole } from "@/contexts/RoleContext";
 import { Camera, Upload, Send, X, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 
-interface AnalysisResult {
+export interface AnalysisResult {
   description: string;
   threatLevel: "low" | "medium" | "high";
   recommendations: string[];
