@@ -107,3 +107,9 @@ See `design_guidelines.md` for tactical military interface design specifications
   - AI-powered image analysis
   - Mission briefing/debriefing system
   - Emergency controls (stealth mode, data wipe)
+  - Waypoints prédéfinis with CRUD API and map display
+  - Route change history tracking with debriefing display
+  - AI threat classification (category, level, confidence)
+  - Emergency azimuth navigation (compass after 30s GPS loss)
+  - PDF debriefing export with Unicode normalization
+  - Mission replay with timeline interface and position history

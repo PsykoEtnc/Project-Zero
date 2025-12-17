@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AlertType, Mission, Waypoint, RouteChange, ConnectionLog } from "@shared/schema";
-import { Map, AlertTriangle, FileText, Radio, Users, Navigation, Play } from "lucide-react";
+import { Map as MapIcon, AlertTriangle, FileText, Radio, Users, Navigation, Play } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -301,7 +301,7 @@ export function Dashboard() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
               <TabsList className="mx-4 mt-2 grid" style={{ gridTemplateColumns: isPC ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
                 <TabsTrigger value="map" data-testid="tab-map">
-                  <Map className="w-4 h-4" />
+                  <MapIcon className="w-4 h-4" />
                 </TabsTrigger>
                 <TabsTrigger value="alerts" data-testid="tab-alerts">
                   <AlertTriangle className="w-4 h-4" />
