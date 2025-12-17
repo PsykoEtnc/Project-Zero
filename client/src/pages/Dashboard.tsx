@@ -35,6 +35,7 @@ export function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isReplayMode, setIsReplayMode] = useState(false);
   const [replayPositions, setReplayPositions] = useState<Map<string, { lat: number; lng: number; heading: number }>>(new Map());
+  const [clickedPosition, setClickedPosition] = useState<{ lat: number; lng: number } | null>(null);
 
   // WebSocket connection
   const {
@@ -341,6 +342,7 @@ export function Dashboard() {
                   extractionPoint={extractionPoint}
                   selectedVehicleId={selectedVehicleId}
                   onWaypointClick={setSelectedWaypoint}
+                  onMapClick={isPC ? (lat, lng) => setClickedPosition({ lat, lng }) : undefined}
                   replayPositions={isReplayMode ? replayPositions : undefined}
                   className="w-full h-full"
                 />
@@ -417,6 +419,7 @@ export function Dashboard() {
                 extractionPoint={extractionPoint}
                 selectedVehicleId={selectedVehicleId}
                 onWaypointClick={setSelectedWaypoint}
+                onMapClick={isPC ? (lat, lng) => setClickedPosition({ lat, lng }) : undefined}
                 replayPositions={isReplayMode ? replayPositions : undefined}
                 className="w-full h-full"
               />
@@ -438,8 +441,8 @@ export function Dashboard() {
                     <WaypointManager
                       onSelectWaypoint={(wp) => setSelectedWaypoint(wp)}
                       selectedWaypoint={selectedWaypoint}
-                      clickedPosition={null}
-                      onClearClickedPosition={() => {}}
+                      clickedPosition={clickedPosition}
+                      onClearClickedPosition={() => setClickedPosition(null)}
                     />
                   </div>
                 </div>

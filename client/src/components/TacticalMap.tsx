@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { useRole } from "@/contexts/RoleContext";
 import type { Vehicle, Alert, Zone, Waypoint } from "@shared/schema";
@@ -151,6 +151,21 @@ function MapController({ vehicles, currentVehicleId, canSeeFullMap }: MapControl
   return null;
 }
 
+interface MapClickHandlerProps {
+  onMapClick?: (lat: number, lng: number) => void;
+}
+
+function MapClickHandler({ onMapClick }: MapClickHandlerProps) {
+  useMapEvents({
+    click: (e) => {
+      if (onMapClick) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+}
+
 interface TacticalMapProps {
   vehicles: Vehicle[];
   alerts: Alert[];
@@ -239,6 +254,9 @@ export function TacticalMap({
           currentVehicleId={currentVehicleId}
           canSeeFullMap={canSeeFullMap}
         />
+
+        {/* Map click handler for waypoint placement */}
+        <MapClickHandler onMapClick={onMapClick} />
 
         {/* Range circle for vehicles (300m visibility) */}
         {!canSeeFullMap && currentVehicle && (

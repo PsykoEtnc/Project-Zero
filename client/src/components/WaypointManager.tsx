@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useRole } from "@/contexts/RoleContext";
@@ -44,6 +44,13 @@ export function WaypointManager({
   const { data: waypoints = [] } = useQuery<Waypoint[]>({
     queryKey: ["/api/waypoints"],
   });
+
+  // Auto-open dialog when map is clicked
+  useEffect(() => {
+    if (clickedPosition && isPC) {
+      openCreateDialog();
+    }
+  }, [clickedPosition]);
 
   const createWaypointMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
