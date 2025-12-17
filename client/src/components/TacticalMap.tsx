@@ -382,6 +382,8 @@ export function TacticalMap({
                 radius={10}
                 pathOptions={{
                   color: "#dc2626",
+                  fillColor: "#9ca3af",
+                  fillOpacity: 0.25,
                   fillColor: "#dc2626",
                   fillOpacity: 0.15,
                   weight: 2,
