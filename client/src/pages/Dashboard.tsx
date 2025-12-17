@@ -13,6 +13,7 @@ import { BriefingView } from "@/components/BriefingView";
 import { DebriefingView } from "@/components/DebriefingView";
 import { WaypointManager } from "@/components/WaypointManager";
 import { AzimuthNavigation } from "@/components/AzimuthNavigation";
+import { MissionReplay } from "@/components/MissionReplay";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AlertType, Mission, Waypoint, RouteChange, ConnectionLog } from "@shared/schema";
-import { Map, AlertTriangle, FileText, Radio, Users, Navigation } from "lucide-react";
+import { Map, AlertTriangle, FileText, Radio, Users, Navigation, Play } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -32,6 +33,8 @@ export function Dashboard() {
   const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
   const [activeTab, setActiveTab] = useState("map");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isReplayMode, setIsReplayMode] = useState(false);
+  const [replayPositions, setReplayPositions] = useState<Map<string, { lat: number; lng: number; heading: number }>>(new Map());
 
   // WebSocket connection
   const {
@@ -221,7 +224,7 @@ export function Dashboard() {
           <aside className="hidden lg:flex flex-col w-80 border-r border-border bg-sidebar overflow-hidden">
             <Tabs defaultValue="ops" className="flex-1 flex flex-col">
               <div className="p-3 border-b border-sidebar-border">
-                <TabsList className="grid grid-cols-2 w-full">
+                <TabsList className="grid grid-cols-3 w-full">
                   <TabsTrigger value="ops" data-testid="tab-desktop-ops">
                     <Navigation className="w-4 h-4 mr-1" />
                     Ops
@@ -229,6 +232,14 @@ export function Dashboard() {
                   <TabsTrigger value="debrief" data-testid="tab-desktop-debrief">
                     <Radio className="w-4 h-4 mr-1" />
                     Débrief
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="replay" 
+                    data-testid="tab-desktop-replay"
+                    onClick={() => setIsReplayMode(true)}
+                  >
+                    <Play className="w-4 h-4 mr-1" />
+                    Replay
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -261,6 +272,24 @@ export function Dashboard() {
                   isLoading={missionLoading}
                 />
               </TabsContent>
+              <TabsContent value="replay" className="flex-1 overflow-auto p-4 m-0">
+                {mission && mission.status === "COMPLETED" ? (
+                  <MissionReplay
+                    mission={mission}
+                    alerts={alerts}
+                    onPositionUpdate={(positions) => setReplayPositions(positions)}
+                    onClose={() => {
+                      setIsReplayMode(false);
+                      setReplayPositions(new Map());
+                    }}
+                  />
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Play className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Le replay n'est disponible que pour les missions terminées</p>
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           </aside>
         )}
@@ -291,6 +320,13 @@ export function Dashboard() {
                     <TabsTrigger value="debrief" data-testid="tab-debrief">
                       <Radio className="w-4 h-4" />
                     </TabsTrigger>
+                    <TabsTrigger 
+                      value="replay" 
+                      data-testid="tab-replay"
+                      onClick={() => setIsReplayMode(true)}
+                    >
+                      <Play className="w-4 h-4" />
+                    </TabsTrigger>
                   </>
                 )}
               </TabsList>
@@ -305,6 +341,7 @@ export function Dashboard() {
                   extractionPoint={extractionPoint}
                   selectedVehicleId={selectedVehicleId}
                   onWaypointClick={setSelectedWaypoint}
+                  replayPositions={isReplayMode ? replayPositions : undefined}
                   className="w-full h-full"
                 />
               </TabsContent>
@@ -344,6 +381,24 @@ export function Dashboard() {
                       isLoading={missionLoading}
                     />
                   </TabsContent>
+                  <TabsContent value="replay" className="flex-1 m-0 p-4 overflow-auto">
+                    {mission && mission.status === "COMPLETED" ? (
+                      <MissionReplay
+                        mission={mission}
+                        alerts={alerts}
+                        onPositionUpdate={(positions) => setReplayPositions(positions)}
+                        onClose={() => {
+                          setIsReplayMode(false);
+                          setReplayPositions(new Map());
+                        }}
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <Play className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>Le replay n'est disponible que pour les missions terminées</p>
+                      </div>
+                    )}
+                  </TabsContent>
                 </>
               )}
             </Tabs>
@@ -362,6 +417,7 @@ export function Dashboard() {
                 extractionPoint={extractionPoint}
                 selectedVehicleId={selectedVehicleId}
                 onWaypointClick={setSelectedWaypoint}
+                replayPositions={isReplayMode ? replayPositions : undefined}
                 className="w-full h-full"
               />
             </div>

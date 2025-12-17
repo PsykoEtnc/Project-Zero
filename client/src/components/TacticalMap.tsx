@@ -161,6 +161,7 @@ interface TacticalMapProps {
   onMapClick?: (lat: number, lng: number) => void;
   onWaypointClick?: (waypoint: Waypoint) => void;
   selectedVehicleId?: string | null;
+  replayPositions?: Map<string, { lat: number; lng: number; heading: number }>;
   className?: string;
 }
 
@@ -174,6 +175,7 @@ export function TacticalMap({
   onMapClick,
   onWaypointClick,
   selectedVehicleId,
+  replayPositions,
   className = "",
 }: TacticalMapProps) {
   const { currentRole, canSeeFullMap } = useRole();
@@ -187,21 +189,24 @@ export function TacticalMap({
   const currentVehicle = vehicles.find(v => v.type === currentRole);
 
   // Filter visibility based on role
+  const isReplayMode = replayPositions && replayPositions.size > 0;
+  
   const visibleVehicles = vehicles.filter(v => {
+    if (isReplayMode) return true;
     if (canSeeFullMap) return true;
     if (!currentVehicle) return true;
     
-    // Calculate distance - vehicles only see 300m radius
     const distance = calculateDistance(
       currentVehicle.latitude,
       currentVehicle.longitude,
       v.latitude,
       v.longitude
     );
-    return distance <= 0.3; // 300 meters in km
+    return distance <= 0.3;
   });
 
   const visibleAlerts = alerts.filter(a => {
+    if (isReplayMode) return true;
     if (canSeeFullMap) return true;
     if (!currentVehicle) return true;
     
@@ -335,33 +340,42 @@ export function TacticalMap({
         ))}
 
         {/* Vehicles */}
-        {visibleVehicles.map((vehicle) => (
-          <Marker
-            key={vehicle.id}
-            position={[vehicle.latitude, vehicle.longitude]}
-            icon={createVehicleIcon(
-              vehicle.type,
-              vehicle.id === selectedVehicleId,
-              vehicle.isStealthMode ?? false
-            )}
-          >
-            <Popup>
-              <div className="p-2">
-                <strong className="block text-sm">{VEHICLE_TYPES[vehicle.type as keyof typeof VEHICLE_TYPES]?.name}</strong>
-                <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                  <p>Position: {vehicle.latitude.toFixed(4)}, {vehicle.longitude.toFixed(4)}</p>
-                  {vehicle.speed !== null && <p>Vitesse: {vehicle.speed?.toFixed(0)} km/h</p>}
-                  <p className={vehicle.isConnected ? "text-green-600" : "text-red-600"}>
-                    {vehicle.isConnected ? "Connecté" : "Déconnecté"}
-                  </p>
-                  {vehicle.isStealthMode && (
-                    <p className="text-yellow-600 font-medium">Mode furtif actif</p>
-                  )}
+        {visibleVehicles.map((vehicle) => {
+          const replayPos = replayPositions?.get(vehicle.id);
+          const lat = replayPos?.lat ?? vehicle.latitude;
+          const lng = replayPos?.lng ?? vehicle.longitude;
+          
+          return (
+            <Marker
+              key={vehicle.id}
+              position={[lat, lng]}
+              icon={createVehicleIcon(
+                vehicle.type,
+                vehicle.id === selectedVehicleId,
+                vehicle.isStealthMode ?? false
+              )}
+            >
+              <Popup>
+                <div className="p-2">
+                  <strong className="block text-sm">{VEHICLE_TYPES[vehicle.type as keyof typeof VEHICLE_TYPES]?.name}</strong>
+                  <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                    <p>Position: {lat.toFixed(4)}, {lng.toFixed(4)}</p>
+                    {replayPos && <p className="text-blue-600 font-medium">Mode Replay</p>}
+                    {!replayPos && vehicle.speed !== null && <p>Vitesse: {vehicle.speed?.toFixed(0)} km/h</p>}
+                    {!replayPos && (
+                      <p className={vehicle.isConnected ? "text-green-600" : "text-red-600"}>
+                        {vehicle.isConnected ? "Connecté" : "Déconnecté"}
+                      </p>
+                    )}
+                    {vehicle.isStealthMode && (
+                      <p className="text-yellow-600 font-medium">Mode furtif actif</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* Alerts */}
         {visibleAlerts.map((alert) => (

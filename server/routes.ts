@@ -11,6 +11,10 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Store connected sockets by vehicle ID
 const connectedClients = new Map<string, Socket>();
 
+// Track last position history save time per vehicle (throttle to every 5 seconds)
+const lastPositionSaveTime = new Map<string, number>();
+const POSITION_SAVE_INTERVAL_MS = 5000;
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -108,6 +112,26 @@ export async function registerRoutes(
       );
       if (vehicle) {
         io.emit("vehicle:updated", vehicle);
+        
+        // Record position history every 5 seconds for mission replay
+        const currentMission = await storage.getCurrentMission();
+        if (currentMission && currentMission.status === "IN_PROGRESS") {
+          const now = Date.now();
+          const lastSave = lastPositionSaveTime.get(data.vehicleId) || 0;
+          
+          if (now - lastSave >= POSITION_SAVE_INTERVAL_MS) {
+            lastPositionSaveTime.set(data.vehicleId, now);
+            
+            await storage.createPositionHistory({
+              missionId: currentMission.id,
+              vehicleId: data.vehicleId,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              heading: data.heading ?? 0,
+              speed: data.speed ?? 0,
+            });
+          }
+        }
       }
     });
 
