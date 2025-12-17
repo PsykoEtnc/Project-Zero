@@ -138,11 +138,30 @@ export async function registerRoutes(
               model: "gpt-5",
               messages: [
                 {
+                  role: "system",
+                  content: `Tu es un analyste de renseignement militaire. Analyse les images tactiques et classifie les menaces.
+Catégories de menaces:
+- VEHICULE_SUSPECT: Véhicule non identifié, technique armé, véhicule abandonné
+- OBSTACLE: Barrage routier, débris, terrain impraticable
+- ZONE_DANGEREUSE: Zone de combat active, embuscade potentielle
+- IED_POTENTIEL: Engin explosif improvisé, objet suspect sur la route
+- PERSONNEL_HOSTILE: Combattants armés, checkpoint non-allié
+- CIVIL: Présence civile, trafic normal
+Réponds en JSON valide.`,
+                },
+                {
                   role: "user",
                   content: [
                     {
                       type: "text",
-                      text: "Analyze this tactical image for potential threats. Identify: 1) Type of threat (vehicle, obstacle, personnel, IED). 2) Threat level (low/medium/high). 3) Brief description. Respond in French in 2-3 sentences.",
+                      text: `Analyse cette image tactique et réponds en JSON:
+{
+  "category": "VEHICULE_SUSPECT|OBSTACLE|ZONE_DANGEREUSE|IED_POTENTIEL|PERSONNEL_HOSTILE|CIVIL",
+  "threatLevel": "LOW|MEDIUM|HIGH|CRITICAL",
+  "description": "description courte en français",
+  "confidence": 0.0-1.0,
+  "recommendation": "action recommandée"
+}`,
                     },
                     {
                       type: "image_url",
@@ -151,7 +170,8 @@ export async function registerRoutes(
                   ],
                 },
               ],
-              max_completion_tokens: 200,
+              response_format: { type: "json_object" },
+              max_completion_tokens: 300,
             });
             aiAnalysis = response.choices[0].message.content ?? undefined;
           } catch (error) {
@@ -420,17 +440,30 @@ CONSIGNES:
         model: "gpt-5",
         messages: [
           {
+            role: "system",
+            content: `Tu es un analyste de renseignement militaire. Analyse les images tactiques et classifie les menaces.
+Catégories de menaces:
+- VEHICULE_SUSPECT: Véhicule non identifié, technique armé, véhicule abandonné
+- OBSTACLE: Barrage routier, débris, terrain impraticable
+- ZONE_DANGEREUSE: Zone de combat active, embuscade potentielle
+- IED_POTENTIEL: Engin explosif improvisé, objet suspect sur la route
+- PERSONNEL_HOSTILE: Combattants armés, checkpoint non-allié
+- CIVIL: Présence civile, trafic normal
+Réponds en JSON valide.`,
+          },
+          {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Analyse cette image tactique et réponds en JSON avec le format suivant:
-                {
-                  "description": "description courte de ce qui est visible",
-                  "threatLevel": "low" ou "medium" ou "high",
-                  "recommendations": ["recommandation 1", "recommandation 2"]
-                }
-                Réponds en français.`,
+                text: `Analyse cette image tactique et réponds en JSON:
+{
+  "category": "VEHICULE_SUSPECT|OBSTACLE|ZONE_DANGEREUSE|IED_POTENTIEL|PERSONNEL_HOSTILE|CIVIL",
+  "threatLevel": "LOW|MEDIUM|HIGH|CRITICAL",
+  "description": "description courte en français",
+  "confidence": 0.0-1.0,
+  "recommendation": "action recommandée"
+}`,
               },
               {
                 type: "image_url",

@@ -6,9 +6,46 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRole } from "@/contexts/RoleContext";
 import type { Alert } from "@shared/schema";
 import { ALERT_TYPES, VEHICLE_TYPES } from "@shared/schema";
-import { AlertTriangle, Check, X, Clock, MapPin, Camera } from "lucide-react";
+import { AlertTriangle, Check, X, Clock, MapPin, Camera, ShieldAlert, Target, Crosshair } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+
+interface AIAnalysis {
+  category: string;
+  threatLevel: string;
+  description: string;
+  confidence: number;
+  recommendation: string;
+}
+
+const THREAT_CATEGORIES: Record<string, { label: string; color: string }> = {
+  VEHICULE_SUSPECT: { label: "Véhicule suspect", color: "bg-orange-500/20 text-orange-700 dark:text-orange-400 border-orange-500/30" },
+  OBSTACLE: { label: "Obstacle", color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" },
+  ZONE_DANGEREUSE: { label: "Zone dangereuse", color: "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" },
+  IED_POTENTIEL: { label: "IED potentiel", color: "bg-red-600/20 text-red-700 dark:text-red-400 border-red-600/30" },
+  PERSONNEL_HOSTILE: { label: "Personnel hostile", color: "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" },
+  CIVIL: { label: "Civil", color: "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/30" },
+};
+
+const THREAT_LEVELS: Record<string, { label: string; color: string }> = {
+  LOW: { label: "Faible", color: "bg-green-500/20 text-green-700 dark:text-green-400" },
+  MEDIUM: { label: "Modéré", color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400" },
+  HIGH: { label: "Élevé", color: "bg-orange-500/20 text-orange-700 dark:text-orange-400" },
+  CRITICAL: { label: "Critique", color: "bg-red-600/20 text-red-700 dark:text-red-300" },
+};
+
+function parseAIAnalysis(aiAnalysis: string | null | undefined): AIAnalysis | null {
+  if (!aiAnalysis) return null;
+  try {
+    const parsed = JSON.parse(aiAnalysis);
+    if (parsed.category && parsed.threatLevel) {
+      return parsed as AIAnalysis;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 interface AlertPanelProps {
   alerts: Alert[];
@@ -176,10 +213,7 @@ function AlertCard({ alert, isPC, onValidate, onDismiss }: AlertCardProps) {
       )}
 
       {alert.aiAnalysis && (
-        <div className="mt-2 p-2 bg-background/50 rounded text-xs">
-          <span className="font-medium">Analyse IA: </span>
-          {alert.aiAnalysis}
-        </div>
+        <AIAnalysisDisplay aiAnalysis={alert.aiAnalysis} />
       )}
 
       {alert.createdAt && (
@@ -210,6 +244,60 @@ function AlertCard({ alert, isPC, onValidate, onDismiss }: AlertCardProps) {
             <X className="w-3 h-3 mr-1" />
             Rejeter
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AIAnalysisDisplay({ aiAnalysis }: { aiAnalysis: string }) {
+  const analysis = parseAIAnalysis(aiAnalysis);
+  
+  if (!analysis) {
+    return (
+      <div className="mt-2 p-2 bg-background/50 rounded text-xs">
+        <span className="font-medium">Analyse IA: </span>
+        {aiAnalysis}
+      </div>
+    );
+  }
+
+  const category = THREAT_CATEGORIES[analysis.category] || { label: analysis.category, color: "bg-muted text-foreground" };
+  const threatLevel = THREAT_LEVELS[analysis.threatLevel] || { label: analysis.threatLevel, color: "bg-muted" };
+
+  return (
+    <div className="mt-2 p-2 bg-background/50 rounded text-xs space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1">
+          <Target className="w-3 h-3" />
+          <span className="font-medium">Classification IA</span>
+        </div>
+        {analysis.confidence !== undefined && (
+          <span className="text-muted-foreground">
+            {Math.round(analysis.confidence * 100)}% confiance
+          </span>
+        )}
+      </div>
+      
+      <div className="flex flex-wrap gap-1">
+        <Badge variant="outline" className={`text-xs border ${category.color}`}>
+          <Crosshair className="w-3 h-3 mr-1" />
+          {category.label}
+        </Badge>
+        <Badge variant="outline" className={`text-xs ${threatLevel.color}`}>
+          <ShieldAlert className="w-3 h-3 mr-1" />
+          {threatLevel.label}
+        </Badge>
+      </div>
+
+      {analysis.description && (
+        <p className="text-muted-foreground">{analysis.description}</p>
+      )}
+
+      {analysis.recommendation && (
+        <div className="pt-1 border-t border-border/50">
+          <span className="font-medium">Recommandation: </span>
+          <span className="text-muted-foreground">{analysis.recommendation}</span>
         </div>
       )}
     </div>
